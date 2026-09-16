@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zion AI FinOps Optimizer — GPU & inference spend</title>
+<meta name="description" content="Calculate AI workload spend: on-demand vs reserved vs spot GPU, API vs self-hosted inference break-even. Free tool by Zion Tech Group.">
+<style>
+:root{--bg:#0c120b;--card:#152015;--acc:#a3e635;--txt:#ecf5e6;--mut:#9db892}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+header{padding:48px 24px 24px;text-align:center;background:linear-gradient(160deg,#1e3a10,#0c120b)}
+h1{margin:0 0 8px}.wrap{max-width:920px;margin:0 auto;padding:24px}
+.panel{background:var(--card);border:1px solid #26391f;border-radius:14px;padding:20px;margin-bottom:20px}
+label{display:block;font-size:.85rem;color:var(--mut);margin:12px 0 4px}
+input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #33492a;background:#101a0e;color:var(--txt)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.big{font-size:1.6rem;color:var(--acc);font-weight:700}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #22331b;font-size:.95rem}
+footer{padding:32px 24px;text-align:center;color:var(--mut);font-size:.85rem;border-top:1px solid #1e2c18;margin-top:40px}
+footer a{color:var(--acc);text-decoration:none;margin:0 8px}
+</style>
+</head>
+<body>
+<header><h1>💰 Zion AI FinOps Optimizer</h1>
+<p>On-demand vs reserved vs spot GPUs, and the API-vs-self-hosted break-even point for inference. Indicative prices, Sept 2026.</p></header>
+<div class="wrap">
+<div class="panel"><h3 style="margin-top:0">GPU workload</h3>
+<div class="row">
+<div><label>GPU type</label><select id="gpu"><option value="3.4">H100 SXM (~$3.40/h)</option><option value="2.2">A100 80GB (~$2.20/h)</option><option value="1.1">L40S (~$1.10/h)</option><option value="0.6">L4 (~$0.60/h)</option></select></div>
+<div><label>GPUs needed</label><input id="ngpu" type="number" value="4" min="1"></div>
+<div><label>Utilization (% of month)</label><input id="util" type="number" value="60" min="1" max="100"></div>
+<div><label>Commitment</label><select id="commit"><option value="1">On-demand</option><option value="0.62">Reserved 1-yr (~38% off)</option><option value="0.45">Reserved 3-yr (~55% off)</option><option value="0.30">Spot (~70% off, interruptible)</option></select></div>
+</div></div>
+<div class="panel"><h3 style="margin-top:0">Inference: API vs self-hosted</h3>
+<div class="row">
+<div><label>Monthly tokens (in+out, billions)</label><input id="tok" type="number" value="2" min="0.1" step="0.1"></div>
+<div><label>Blended API price $/1M tokens</label><input id="api" type="number" value="2.5" step="0.1"></div>
+</div></div>
+<div class="panel" id="out"></div>
+</div>
+<footer>Part of the <a href="https://ziontechgroup.com">Zion Tech Group</a> AI apps network ·
+<a href="https://ziontechgroup.com/zion-llm-cost-calculator/">LLM Cost Calculator</a>
+<a href="https://ziontechgroup.com/zion-agent-observability/">Agent Observability</a>
+<a href="https://ziontechgroup.com/finops-consulting/">Zion FinOps consulting</a></footer>
+<script>
+function calc(){
+const rate=+document.getElementById('gpu').value,n=+document.getElementById('ngpu').value||1,u=(+document.getElementById('util').value||60)/100,d=+document.getElementById('commit').value;
+const hours=730*n*u, monthly=hours*rate*d;
+const tok=+document.getElementById('tok').value||0, api=+document.getElementById('api').value||0;
+const apiCost=tok*1000*api;
+// self-host estimate: one L40S serves ~25M tok/day for a 8-13B class model
+const selfCost=Math.ceil(tok*1000/(25*30))*1.1*730;
+document.getElementById('out').innerHTML=`
+<div class="kv"><span>GPU hours / month (utilized)</span><b>${hours.toLocaleString(undefined,{maximumFractionDigits:0})}</b></div>
+<div class="kv"><span>GPU spend / month (${['on-demand','reserved 1y','reserved 3y','spot'][[1,0.62,0.45,0.3].indexOf(d)]})</span><span class="big">$${monthly.toLocaleString(undefined,{maximumFractionDigits:0})}</span></div>
+<div class="kv"><span>API inference cost / month</span><b>$${apiCost.toLocaleString(undefined,{maximumFractionDigits:0})}</b></div>
+<div class="kv"><span>Self-hosted estimate (L40S fleet, 8–13B model)</span><b>$${selfCost.toLocaleString(undefined,{maximumFractionDigits:0})}</b></div>
+<div class="kv"><span>Verdict</span><b style="color:var(--acc)">${apiCost<selfCost?'Stay on API — self-hosting not yet economical':'Self-hosting likely cheaper — run a pilot'}</b></div>`;}
+['gpu','ngpu','util','commit','tok','api'].forEach(id=>document.getElementById(id).addEventListener('input',calc));calc();
+</script>
+</body>
+</html>
